@@ -1,0 +1,24 @@
+[package]
+name = "honse-hotkeys"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Global hotkey polling for Hachimi Edge plugins, independent of any plugin-API binding"
+repository = "https://github.com/albhax/honse-hotkeys"
+
+[lib]
+name = "honse_hotkeys"
+path = "src/lib.rs"
+
+[lints.clippy]
+all = "allow"
+perf = { level = "deny", priority = 1 }
+
+[dependencies]
+# Deliberately empty.
+#
+# This crate is shared by plugins that each carry their own bindings to the Hachimi
+# plugin API (honse-pov resolves symbols by name, honse-tracker goes through
+# edge-sdk). Depending on either would force the other to adopt it, so the crate is
+# self-contained: it reads key state straight from Win32 and exposes an injectable
+# poll so callers can drive it from whatever frame tick they already have.
