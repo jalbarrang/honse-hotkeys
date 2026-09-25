@@ -1,9 +1,9 @@
 //! Key and foreground state, read from Win32.
 //!
-//! `GetAsyncKeyState` is **global**: it reports a key whether or not this process
-//! has focus. That is what makes a hotkey work while the game is not the active
-//! window, and also why every caller must gate on [`is_foreground`] — without it a
-//! chord fires while the player types in another application.
+//! `GetAsyncKeyState` is global: it reports a key whether or not this process has
+//! focus. That is what makes a hotkey work while the game is not the active window, and
+//! it is also why callers gate on [`is_foreground`]: without the gate, a chord fires
+//! while the player types in another application.
 
 /// Whether a virtual-key code is currently held.
 ///
@@ -27,8 +27,7 @@ pub fn key_down(vk: u32) -> bool {
 ///
 /// Comparing process ids rather than window handles means the caller does not need
 /// to know the game's HWND. A host that draws its overlay into the game's own
-/// window stays "foreground" while its menu is open, which is what keeps chords
-/// live in that state.
+/// window stays "foreground" while its menu is open, so chords stay live there.
 ///
 /// Always `false` off Windows.
 #[must_use]

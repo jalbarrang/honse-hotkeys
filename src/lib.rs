@@ -2,19 +2,18 @@
 //!
 //! # Why polling, not a hook
 //!
-//! Hachimi's plugin API exposes no key events, and Hachimi Edge has no WndProc
-//! plugin hook, so a plugin cannot observe key messages. (The upstream Hachimi fork
-//! this one descends from had one — honse-tracker's original note points at
-//! `hachimi-redux/.../plugin/hotkeys.rs`, which fired from a global WndProc hook.
-//! Edge has no equivalent.) The workable route is to read key state straight from
-//! Win32 on a per-frame tick.
+//! Hachimi's plugin API exposes no key events, and Hachimi Edge has no WndProc plugin
+//! hook, so a plugin cannot observe key messages. The upstream Hachimi fork had one:
+//! honse-tracker's original note points at `hachimi-redux/.../plugin/hotkeys.rs`,
+//! which fired from a global WndProc hook. Edge has no equivalent, so the workable
+//! route is to read key state straight from Win32 on a per-frame tick.
 //!
 //! That tick comes from the host's present callback, which the caller registers. This
-//! crate deliberately does **not** register it: the callers have different bindings to
-//! the plugin API (honse-pov resolves symbols by name at runtime, honse-tracker goes
-//! through its own `edge-sdk`), and depending on either would force the other to
-//! adopt it. So the whole public surface is `Hotkeys` plus [`platform`] readers, and
-//! the host supplies the frame tick:
+//! crate does not register it. Its callers are plugins with different bindings to the
+//! plugin API (honse-pov resolves symbols by name at runtime, honse-tracker goes
+//! through its own `edge-sdk`), and depending on either would force the other to adopt
+//! it. The public surface is therefore `Hotkeys` plus the `platform` readers, and the
+//! host supplies the frame tick:
 //!
 //! ```no_run
 //! use honse_hotkeys::{Chord, Hotkeys};
@@ -36,22 +35,22 @@
 //! }
 //! ```
 //!
-//! # The typable-chord policy is the host's
+//! # The typable-chord policy belongs to the host
 //!
-//! [`Hotkeys::register`] accepts a chord without Ctrl or Alt; it does not refuse one.
-//! [`Chord::is_typeable`] reports the condition, and whether to enforce it is a product
-//! decision — honse-tracker refuses such a chord because its overlay must never
+//! [`Hotkeys::register`] accepts a chord without Ctrl or Alt and does not refuse one.
+//! [`Chord::is_typeable`] reports that condition, and whether to enforce it is a
+//! product decision: honse-tracker refuses such a chord because its overlay must never
 //! interfere with typing, while a plugin binding a key the game ignores may not care.
 //!
-//! # Framing
+//! # Behaviour
 //!
-//! Firing is **edge-triggered**: once on the down transition, not every frame while
+//! Firing is edge-triggered: once on the down transition, not on every frame while
 //! held. Repeat is opt-in per binding, for nudging something where one press per step
 //! would mean fifty presses to cross a screen. A toggle must not repeat.
 //!
-//! While the game is not foreground the whole registry is frozen and its edge state
-//! reset, so a chord held during a window switch does not fire the moment focus
-//! returns.
+//! While the game is not foreground the registry is frozen and its edge state is reset,
+//! so nothing fires in the background. A chord held across a window switch counts as a
+//! fresh press when focus returns, and fires once then.
 
 mod chord;
 mod platform;
@@ -126,7 +125,7 @@ impl Entry {
 
         self.held_frames += 1;
         self.held_frames >= REPEAT_DELAY_FRAMES
-            && (self.held_frames - REPEAT_DELAY_FRAMES) % REPEAT_EVERY_FRAMES == 0
+            && (self.held_frames - REPEAT_DELAY_FRAMES).is_multiple_of(REPEAT_EVERY_FRAMES)
     }
 }
 
@@ -187,7 +186,7 @@ impl Hotkeys {
         self.entries.len() != before
     }
 
-    /// Makes a chord fire repeatedly while held. Never for a toggle.
+    /// Makes a chord fire repeatedly while held. Do not use this for a toggle.
     pub fn set_repeat(&mut self, handle: Handle, repeat: bool) -> bool {
         match self.entries.iter_mut().find(|e| e.handle == handle) {
             Some(entry) => {
@@ -233,7 +232,6 @@ impl Hotkeys {
         self.entries.is_empty()
     }
 
-    #[must_use]
     pub fn chords(&self) -> impl Iterator<Item = Chord> + '_ {
         self.entries.iter().map(|e| e.chord)
     }
@@ -365,7 +363,7 @@ mod tests {
 
     #[test]
     fn typable_policy_inputs() {
-        // Exactly one of Ctrl or Alt is the only safe shape.
+        // Ctrl or Alt alone, with or without Shift, types nothing on any layout.
         assert!(!Chord::parse("ctrl+p").unwrap().is_typeable());
         assert!(!Chord::parse("alt+p").unwrap().is_typeable());
         assert!(!Chord::parse("ctrl+shift+p").unwrap().is_typeable());
@@ -375,8 +373,7 @@ mod tests {
         assert!(Chord::parse("p").unwrap().is_typeable());
         assert!(Chord::parse("shift+p").unwrap().is_typeable());
 
-        // AltGr: Ctrl+Alt types, with or without Shift. A naive "has a modifier"
-        // check would call these safe.
+        // AltGr: Ctrl+Alt types text, with or without Shift.
         assert!(Chord::parse("ctrl+alt+p").unwrap().is_typeable());
         assert!(Chord::parse("ctrl+alt+shift+p").unwrap().is_typeable());
     }
@@ -467,7 +464,7 @@ mod tests {
 
         hotkeys.poll_with(&down, || true);
         assert_eq!(HITS.load(Ordering::Relaxed), 1);
-        hotkeys.poll_with(&held(&[]), || true);
+        hotkeys.poll_with(held(&[]), || true);
 
         assert!(hotkeys.unregister(handle));
         assert!(!hotkeys.unregister(handle), "second unregister is a no-op");
@@ -518,12 +515,12 @@ mod tests {
         assert_eq!(hotkeys.chord_of(handle), Some(Chord::new(Mods::ALT, 0x20)));
 
         HITS.store(0, Ordering::Relaxed);
-        hotkeys.poll_with(&held(&[0x20, VK_MENU]), || true);
+        hotkeys.poll_with(held(&[0x20, VK_MENU]), || true);
         assert_eq!(HITS.load(Ordering::Relaxed), 1);
 
         // The old chord is no longer bound to this handle.
-        hotkeys.poll_with(&held(&[]), || true);
-        hotkeys.poll_with(&held(&[CTRL_F1, VK_CONTROL]), || true);
+        hotkeys.poll_with(held(&[]), || true);
+        hotkeys.poll_with(held(&[CTRL_F1, VK_CONTROL]), || true);
         assert_eq!(HITS.load(Ordering::Relaxed), 1);
     }
 }

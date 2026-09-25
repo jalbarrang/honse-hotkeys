@@ -39,11 +39,12 @@ plugin API (honse-pov resolves symbols by name at runtime, honse-tracker goes th
 what makes a hotkey work while the game is not the active window, and it is also why a chord
 would otherwise fire while the player types in Discord. `poll()` checks that the foreground
 window belongs to this process. While it does not, the registry is frozen and its edge state is
-reset, so a chord held during a window switch does not fire the moment focus returns.
+reset: nothing fires in the background, and a chord held across a window switch counts as a
+fresh press when focus returns.
 
 The check compares process ids rather than window handles, so the caller never needs the game's
 HWND. A host that draws its overlay into the game's own window stays "foreground" while its
-menu is open.
+menu is open, so chords stay live there.
 
 ## The AltGr trap
 
@@ -56,9 +57,9 @@ menu is open.
 | `ctrl+alt+p`, `ctrl+alt+shift+p` | yes | Ctrl+Alt is AltGr on Windows |
 
 AltGr is how everyday characters are typed on non-US layouts (on a Spanish keyboard `AltGr+2`
-is `@`), so a Ctrl+Alt chord fires while the player types perfectly ordinary text. A naive "it
-has a modifier, so it is safe" check passes Ctrl+Alt and gets this wrong; `is_typeable` is
-`ctrl == alt` for that reason.
+is `@`), so a Ctrl+Alt chord fires while the player types perfectly ordinary text. A check
+that only asks whether a modifier is present passes Ctrl+Alt and gets this wrong;
+`is_typeable` is `ctrl == alt` for that reason.
 
 The crate does not refuse such a chord. Whether to is a product decision, and honse-tracker
 refuses because its overlay must never interfere with typing, so the policy stays with the
@@ -121,4 +122,4 @@ failure mode; it is not part of this crate.
 
 ## License
 
-GPL-3.0-or-later, matching both consumers.
+GPL-3.0-or-later, matching both consumers. Full text in [LICENSE](LICENSE).

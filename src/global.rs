@@ -5,8 +5,7 @@
 //! call free functions, which is what this module provides.
 //!
 //! Each plugin is loaded as its own dynamic library, so each gets its own copy of
-//! these statics — two plugins using this module do not share a registry and cannot
-//! interfere with each other.
+//! these statics, and two plugins using this module do not share a registry.
 
 use std::ffi::c_void;
 use std::sync::{Mutex, OnceLock};
@@ -69,8 +68,10 @@ pub fn clear() {
 /// Polls the global registry against real key state. Call once per frame from the
 /// host's present callback.
 pub fn poll() {
-    // A callback may register or unregister, so the registry is not held across a
-    // fire. `Hotkeys::poll_with` already collects before firing, and `with` releases
-    // the lock when it returns, so this is safe as written.
+    // The registry lock is held for the whole poll, callbacks included. `std::sync::Mutex`
+    // is not reentrant, so a callback that calls back into this module deadlocks.
+    // `Hotkeys::poll_with` collects its fire list before invoking anything, which keeps
+    // the entry list from being mutated mid-iteration, but that is the only guarantee
+    // here.
     with(|hotkeys| hotkeys.poll());
 }

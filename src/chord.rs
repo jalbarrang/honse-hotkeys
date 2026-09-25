@@ -50,8 +50,8 @@ impl BitOr for Mods {
 
 /// A modifier set plus a primary key.
 ///
-/// `vk == 0` means unbound and never matches — the same convention honse-tracker
-/// used, so a "not configured" binding cannot accidentally match a real key.
+/// `vk == 0` means unbound and never matches, so a "not configured" binding cannot
+/// accidentally match a real key. This is the convention honse-tracker used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Hash)]
 pub struct Chord {
     pub mods: Mods,
@@ -79,18 +79,16 @@ impl Chord {
     /// A chord is safe to use globally only when it holds exactly one of Ctrl or Alt:
     ///
     /// - neither: the chord is plain characters;
-    /// - **Ctrl+Alt is AltGr on Windows.** On non-US layouts that is how everyday
-    ///   characters are typed (Spanish `AltGr+2` is `@`), and AltGr+Shift types too,
-    ///   so Ctrl+Alt chords fire during ordinary typing;
-    /// - exactly one of Ctrl or Alt (with or without Shift) produces no characters on
-    ///   any layout.
+    /// - exactly one of Ctrl or Alt, with or without Shift: no layout produces
+    ///   characters from it;
+    /// - Ctrl and Alt together: on Windows that is AltGr, which is how non-US layouts
+    ///   type everyday characters (Spanish `AltGr+2` is `@`), and Shift takes part too,
+    ///   so these chords fire during ordinary typing.
     ///
-    /// Note this is stricter than "has a modifier": a naive
-    /// `!ctrl && !alt` check passes Ctrl+Alt, which is the very combination that
-    /// AltGr makes unsafe.
+    /// A test like `!ctrl && !alt` is therefore not enough, since it passes Ctrl+Alt.
     ///
-    /// This crate does not refuse such a chord; the policy belongs to the host.
-    /// Check this before [`crate::Hotkeys::register`] if you want to refuse it.
+    /// This crate does not refuse such a chord; the policy belongs to the host. Check
+    /// this before [`crate::Hotkeys::register`] if you want to refuse it.
     #[must_use]
     pub const fn is_typeable(self) -> bool {
         let ctrl = self.mods.contains(Mods::CTRL);
@@ -116,10 +114,9 @@ impl Chord {
 
     /// Whether this chord is held, given a key-state reader.
     ///
-    /// Modifiers are compared for **equality**, not as a superset, so
-    /// `Ctrl+Shift+P` does not also fire while Alt is down. That matters for
-    /// [`crate::Hotkeys::chord_registered`], which decides whether a key message
-    /// should be swallowed.
+    /// Modifiers are compared for equality, not as a superset, so `Ctrl+Shift+P` does
+    /// not also fire while Alt is down. [`crate::Hotkeys::chord_registered`] relies on
+    /// that to decide whether a key message should be swallowed.
     #[must_use]
     pub fn is_down(self, key_down: &dyn Fn(u32) -> bool) -> bool {
         self.is_bound() && key_down(self.vk) && Self::mods_from(key_down) == self.mods
