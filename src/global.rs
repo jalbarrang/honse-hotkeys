@@ -25,11 +25,7 @@ fn with<R>(f: impl FnOnce(&mut Hotkeys) -> R) -> R {
     f(&mut guard)
 }
 
-pub fn register(
-    chord: Chord,
-    callback: crate::Callback,
-    userdata: *mut c_void,
-) -> Result<Handle, RegisterError> {
+pub fn register(chord: Chord, callback: crate::Callback, userdata: *mut c_void) -> Result<Handle, RegisterError> {
     with(|hotkeys| hotkeys.register(chord, callback, userdata))
 }
 

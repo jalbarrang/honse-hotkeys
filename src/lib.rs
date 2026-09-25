@@ -212,10 +212,7 @@ impl Hotkeys {
 
     #[must_use]
     pub fn chord_of(&self, handle: Handle) -> Option<Chord> {
-        self.entries
-            .iter()
-            .find(|e| e.handle == handle)
-            .map(|e| e.chord)
+        self.entries.iter().find(|e| e.handle == handle).map(|e| e.chord)
     }
 
     pub fn clear(&mut self) {
@@ -243,9 +240,7 @@ impl Hotkeys {
     /// game untouched.
     #[must_use]
     pub fn chord_registered(&self, vk: u32, mods: Mods) -> bool {
-        self.entries
-            .iter()
-            .any(|e| e.chord.vk == vk && e.chord.mods == mods)
+        self.entries.iter().any(|e| e.chord.vk == vk && e.chord.mods == mods)
     }
 
     /// Whether any bound chord uses exactly this modifier set.
@@ -255,11 +250,7 @@ impl Hotkeys {
     /// focused text field.
     #[must_use]
     pub fn any_chord_uses(&self, mods: Mods) -> bool {
-        !mods.is_empty()
-            && self
-                .entries
-                .iter()
-                .any(|e| e.chord.is_bound() && e.chord.mods == mods)
+        !mods.is_empty() && self.entries.iter().any(|e| e.chord.is_bound() && e.chord.mods == mods)
     }
 
     /// Polls every registration against real key state. Call once per frame.
@@ -271,11 +262,7 @@ impl Hotkeys {
     ///
     /// `key_down` reports whether a virtual key is held; `is_foreground` reports
     /// whether this process owns the foreground window.
-    pub fn poll_with(
-        &mut self,
-        key_down: impl Fn(u32) -> bool,
-        is_foreground: impl Fn() -> bool,
-    ) {
+    pub fn poll_with(&mut self, key_down: impl Fn(u32) -> bool, is_foreground: impl Fn() -> bool) {
         if !is_foreground() {
             // Reset edge state so a chord held while unfocused does not fire on
             // refocus.
