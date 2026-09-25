@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Global hotkey polling for Hachimi Edge plugins, independent of any plugin-API binding"
-repository = "https://github.com/albhax/honse-hotkeys"
+repository = "https://github.com/jalbarrang/honse-hotkeys"
 
 [lib]
 name = "honse_hotkeys"
